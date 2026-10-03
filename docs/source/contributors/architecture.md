@@ -8,14 +8,14 @@ browser, and where the UI controls come from.
 
 The unit of the system is the chat. When a chat opens, jupyter-ai-router notifies
 the persona manager, which creates **one `PersonaManager` instance bound to that
-chat's room** (`text:chat:<file-id>`). That manager:
+chat's model**, identified by `chat.get_id()`. That manager:
 
 - loads the available persona **classes** — from the `jupyter_ai.personas`
   entry-point group of installed packages, and from `*persona*.py` files in the
   chat's local `.jupyter/personas/` directory — and
 - **instantiates one persona object per class, scoped to that chat's
-  `YChat`**. Each persona instance therefore has its own `self.ychat` and its own
-  awareness slot, and lives as long as the chat session does.
+  chat model**. Each persona instance therefore has its own `self.chat` and
+  session state, and lives as long as the chat session does.
 
 `/refresh-personas` tears the instances down and rebuilds them (picking up code
 changes and new local personas) without restarting the server.
@@ -40,26 +40,27 @@ for values that actually changed) and records the new current values. So each
 user's choices are private to their message, and your `process_message` sees an
 already-configured persona.
 
-## Broadcasting state: the awareness channel
+## Broadcasting state: Jupyter Events
 
 Session state flows the _other_ way — from persona to browser — over the chat's
-**Yjs awareness channel**, not through REST polling. Awareness is a per-client
-key/value map on the shared document; this package reserves two kinds of slots:
+**Jupyter Events** transport, not through REST polling. Events are scoped by the
+chat's stable ID and represent published session state, not private selections:
 
-- **`PersonaManagerAwareness`** (a fixed, well-known client ID) publishes the
+- **`PersonaManagerSessionState`** publishes the
   **list of personas** in the chat (each a
   {py:class}`~jupyter_ai_persona_manager.PersonaOption`), so the picker can render
-  them and map each to its awareness slot.
-- **`PersonaAwareness`** (one per persona, on that persona's own client ID)
+  them.
+- **`PersonaSessionState`** (one per persona)
   publishes that persona's **model configuration, general settings, usage, slash
-  commands, and writing status**.
+  commands, and processing status**.
 
-Inside a persona, `self.awareness` exposes these as typed properties — assigning
+Inside a persona, `self.state` exposes these as typed properties — assigning
 one rebroadcasts it. The `get_*` readers and `report_*` setters on `BasePersona`
-are thin views over this slot: `report_usage(...)` publishes usage the UI renders
-in a meter; the streaming helper toggles the `is_writing` flag that drives the
-typing indicator. There's no separate in-memory copy to keep in sync — the
-awareness slot _is_ the state.
+are thin views over this state: `report_usage(...)` publishes usage the UI renders
+in a meter. Attribute updates emit partial events; full-state publication is
+used for catch-up when the chat reports a client connection. The frontend's
+`PersonaSessionRegistry` merges these events and notifies toolbar consumers.
+Typing indicators use the chat model's writing-status API.
 
 ## Where the UI comes from
 
@@ -81,12 +82,19 @@ into Jupyter Chat's input-toolbar registry. (These controls previously lived in
 `jupyter-ai-acp-client` and were moved here so persona UI and persona logic ship
 together.)
 
-The two halves meet at awareness and message metadata: the controls render from
-what personas broadcast over awareness (the persona list, each persona's models,
+The two halves meet at session events and message metadata: the controls render from
+what personas publish (the persona list, each persona's models,
 settings, and usage), and writing to the chat stamps the user's selection onto
 the message metadata (`metadata.ts`) that the backend reads. The stop button
 POSTs to the [cancel endpoint](./rest-api.md), which asks each processing persona
 to {py:meth}`~jupyter_ai_persona_manager.BasePersona.cancel_response`.
+
+An optional [model dependency](./custom-personas.md#model-choices-dependent-on-a-general-setting)
+lets the built-in toolbar project model choices from a pending general setting.
+The projection and pending cache stay local to each browser; the toolbar remains
+the sole writer of model/settings metadata. Message application orders the
+dependent setting before model and model settings, with other general settings
+last. Personas without a dependency retain the original model-first order.
 
 ## Putting it together: one message, end to end
 
@@ -99,10 +107,10 @@ to {py:meth}`~jupyter_ai_persona_manager.BasePersona.cancel_response`.
    (`apply_specs_in_message`), then calls `process_message` inside
    `track_processing` (so `processing` is true for its duration).
 4. The persona streams its reply via `stream_message`, which creates/updates one
-   chat message and toggles the `is_writing` awareness flag; usage is published
+   chat message and manages typing status; usage is published
    via `report_usage`.
 5. The browser renders the streamed message, the typing indicator, and the usage
-   meter — all from awareness. If the user interrupts, the cancel endpoint calls
+   meter from chat updates and session events. If the user interrupts, the cancel endpoint calls
    the persona's `cancel_response`.
 
 See the [Python API](./python-api.md) for the members named above.

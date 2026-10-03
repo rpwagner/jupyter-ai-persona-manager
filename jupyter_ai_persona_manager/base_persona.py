@@ -1004,8 +1004,25 @@ class BasePersona(ABC, LoggingConfigurable, metaclass=ABCLoggingConfigurableMeta
         without each `process_message()` implementation having to do so itself.
 
         A message with no relevant metadata is a no-op.
+
+        With a declared model dependency, its general setting is applied first,
+        then model/model settings, then remaining general settings. The setting
+        update hook owns publishing the new active model state before returning.
         """
         metadata = message.metadata or {}
+
+        settings_meta = metadata.get("settings")
+        dependency = self.get_model_configuration().dependency
+        if dependency is not None and settings_meta:
+            # Apply only the controlling setting first. Its update hook owns
+            # publishing the new active model configuration and default.
+            setting_id = dependency.setting_id
+            if setting_id in settings_meta:
+                await self.apply_settings_spec({setting_id: settings_meta[setting_id]})
+                settings_meta = {
+                    key: value for key, value in settings_meta.items()
+                    if key != setting_id
+                }
 
         model_meta = metadata.get("model")
         if model_meta is not None:
@@ -1016,7 +1033,6 @@ class BasePersona(ABC, LoggingConfigurable, metaclass=ABCLoggingConfigurableMeta
             )
             await self.apply_model_spec(spec)
 
-        settings_meta = metadata.get("settings")
         if settings_meta:
             await self.apply_settings_spec(settings_meta)
 

@@ -80,6 +80,80 @@ Beyond the two required members, the pieces you're most likely to add:
 See the [Python API](./python-api.md) for the exhaustive list — each member is
 labeled by its contract level.
 
+## Model choices dependent on a general setting
+
+If a backend, profile, or endpoint setting determines the available models,
+publish an optional `ModelConfiguration.dependency`. It describes one general
+setting, with ordered model options and a default for each setting option ID:
+
+```python
+from jupyter_ai_persona_manager import (
+    ModelConfiguration, ModelDependency, ModelDomain, ModelOption,
+    SettingConfiguration, SettingOption,
+)
+
+self.report_settings_configuration([
+    SettingConfiguration(
+        id="backend", current="A",
+        options=[SettingOption(id="A"), SettingOption(id="B")],
+    ),
+])
+self.report_model_configuration(ModelConfiguration(
+    current="A1",
+    options=[ModelOption(id="A1"), ModelOption(id="A2")],
+    dependency=ModelDependency(
+        setting_id="backend",
+        values={
+            "A": ModelDomain(default_model="A1", options=[
+                ModelOption(id="A1"), ModelOption(id="A2"),
+            ]),
+            "B": ModelDomain(default_model="B1", options=[
+                ModelOption(id="B1"), ModelOption(id="B2"),
+            ]),
+        },
+    ),
+))
+```
+
+`current`, `options`, and `settings` continue to describe the **active session**.
+The dependency mapping is a projection for the toolbar, carried unchanged over
+the existing Jupyter Events state transport. Keys match setting option IDs
+exactly; each non-null `default_model` should occur in its domain's options.
+An empty domain is allowed. An absent setting/current value or an unmapped value
+falls back to the ordinary model configuration.
+
+The toolbar uses a user's pending setting value first, then the published
+current setting. A null pending value means “use current”. In the active domain,
+the model's Default row shows the actual current model. For a different pending
+domain, it shows that domain's `default_model`. Model settings published for the
+active domain are hidden while a different domain is pending; no model-setting
+vocabulary is inferred for the new domain.
+
+Changing selectors updates only that browser's existing per-persona cache and
+outgoing message metadata. It does not call the backend or broadcast pending
+choices. Switching personas and returning retains valid choices during the
+toolbar's lifetime; a browser refresh starts with the published session state.
+
+On a dependency change, exact model IDs still valid in the projected domain are
+retained; invalid overrides become null. Pending model settings are cleared
+when the dependency or effective model changes, or when their advertised options
+become invalid. Unrelated general settings are preserved. Incoming session
+events reconcile cached selections for inactive personas too, before metadata
+is written. A removed dependency setting option resets its pending value to
+null. Usage-only events do not invalidate the selection context.
+
+When a message arrives, `apply_specs_in_message()` applies the dependent general
+setting first, then the model and model settings, then remaining general
+settings. Implement `update_settings()` so switching the dependent setting
+publishes the actual new model configuration and default before returning. The
+base class does not choose a backend model from the projection: the component
+that owns the setting owns that behavior. Null and unchanged message values
+remain no-ops. A failed setting update stops processing before model changes.
+
+Without a dependency, control and message application behavior is unchanged.
+This API supports one setting-to-model dependency, not an arbitrary control
+dependency graph.
+
 ## Marking your own API for the docs
 
 The contract levels on the [Python API](./python-api.md) page are not hand-

@@ -37,6 +37,10 @@ import {
 } from './metadata';
 import { IPersonaControlRegistry } from './persona-control-registry';
 import { PERSONA_SELECTED_EVENT_SCHEMA_ID } from './persona-events';
+import {
+  projectModelConfiguration,
+  reconcilePersonaSettings
+} from './model-dependency';
 
 const SELECTOR_CLASS = 'jp-jai-personaControls';
 const MENU_CLASS = 'jp-jai-controlMenu';
@@ -122,21 +126,22 @@ export function buildControls(
     return [];
   }
   const controls: Control[] = [];
-  if (persona.model.options.length) {
+  const model = projectModelConfiguration(persona, settings);
+  if (model.options.length) {
     controls.push({
       id: MODEL_CONTROL_ID,
       kind: 'model',
       label: 'Model',
-      current: persona.model.current,
+      current: model.current,
       selection: settings.modelId,
-      options: persona.model.options.map(o => ({
+      options: model.options.map(o => ({
         id: o.id,
         name: o.name ?? o.id,
         description: o.description
       }))
     });
   }
-  for (const setting of persona.model.settings) {
+  for (const setting of model.settings) {
     controls.push(
       settingToControl(
         setting,
@@ -1060,8 +1065,8 @@ export function UsageChip(props: { usage: Usage }): JSX.Element | null {
  * Hides itself when the chat has no personas.
  *
  * All session information (the persona list, each persona's model/settings
- * configuration, usage, and slash commands) is read from the chat's Yjs
- * awareness channel. The selection is owned by the frontend and stamped onto
+ * configuration, usage, and slash commands) is read from Jupyter Events session
+ * state. The selection is owned by the frontend and stamped onto
  * each message's metadata (there is no server-side "active persona" and no REST
  * polling). It's seeded from the default persona advertised over PageConfig.
  */
@@ -1130,7 +1135,7 @@ export function PersonaControls(
   // resetting to defaults. Component-lifetime only (not persisted across
   // reloads). A persona absent from the cache has made no changes yet.
   const [settingsCache, setSettingsCache] = useState<
-    Record<string, PersonaSettings>
+    Record<string, { settings: PersonaSettings; state: PersonaSessionState }>
   >({});
   const [personaAnchor, setPersonaAnchor] = useState<HTMLElement | null>(null);
   // Whether the user has explicitly picked a persona (or "No one") in this
@@ -1139,9 +1144,16 @@ export function PersonaControls(
 
   // The selected persona's settings: its cache entry, or empty (all defaults)
   // when it has none yet.
-  const settings = selectedId
-    ? (settingsCache[selectedId] ?? emptyPersonaSettings())
-    : emptyPersonaSettings();
+  // Read the selected state directly so a persona switch cannot briefly stamp
+  // the previous persona's model context. The state effect below drives renders.
+  const selectedState = selectedId
+    ? (managerState?.getPersona(selectedId) ?? null)
+    : null;
+  const cached = selectedId ? settingsCache[selectedId] : undefined;
+  const settings =
+    cached && selectedState
+      ? reconcilePersonaSettings(cached.state, selectedState, cached.settings)
+      : (cached?.settings ?? emptyPersonaSettings());
 
   // Re-read the persona list from the session state and reconcile the
   // selection (see reconcileSelection for the decision rules).
@@ -1167,6 +1179,30 @@ export function PersonaControls(
     const sync = () => {
       readManager();
       setReady(managerState.ready);
+      // Reconcile inactive personas too, so switching away cannot retain a
+      // stale override when their session state changes. Each entry holds only
+      // the immutable state reference needed to compare selection contexts.
+      setSettingsCache(previous => {
+        let next = previous;
+        for (const [id, entry] of Object.entries(previous)) {
+          const state = managerState.getPersona(id);
+          if (!state || state === entry.state) {
+            continue;
+          }
+          if (next === previous) {
+            next = { ...previous };
+          }
+          next[id] = {
+            state,
+            settings: reconcilePersonaSettings(
+              entry.state,
+              state,
+              entry.settings
+            )
+          };
+        }
+        return next;
+      });
     };
     sync();
     managerState.changed.connect(sync);
@@ -1260,7 +1296,7 @@ export function PersonaControls(
   const personaLabel = selectedPersona?.name ?? NO_ONE_LABEL;
   const activeAvatar = selectedPersona?.avatar_url ?? null;
   const usage = personaState?.usage ?? EMPTY_USAGE;
-  const controls = buildControls(personaState, settings);
+  const controls = buildControls(selectedState, settings);
 
   const handlePersona = (personaId: string | null) => {
     setPersonaAnchor(null);
@@ -1269,19 +1305,30 @@ export function PersonaControls(
   };
 
   const handleControl = (control: Control, value: string | null) => {
-    if (!selectedId) {
+    if (!selectedId || !selectedState) {
       return;
     }
     // Fold the change into this persona's cached settings, remembering it for
     // when the user switches away and back.
-    setSettingsCache(prev => ({
-      ...prev,
-      [selectedId]: applyControlChange(
-        prev[selectedId] ?? emptyPersonaSettings(),
-        control,
-        value
-      )
-    }));
+    setSettingsCache(prev => {
+      const entry = prev[selectedId];
+      const current = entry
+        ? reconcilePersonaSettings(entry.state, selectedState, entry.settings)
+        : emptyPersonaSettings();
+      const changed = applyControlChange(current, control, value);
+      return {
+        ...prev,
+        [selectedId]: {
+          state: selectedState,
+          settings: reconcilePersonaSettings(
+            selectedState,
+            selectedState,
+            changed,
+            current
+          )
+        }
+      };
+    });
   };
 
   return (
