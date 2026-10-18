@@ -58,16 +58,27 @@ npm publish --access public
 
 ## Automated releases with the Jupyter Releaser
 
-The extension repository should already be compatible with the Jupyter Releaser. But
-the GitHub repository and the package managers need to be properly set up. Please
-follow the instructions of the Jupyter Releaser [checklist](https://jupyter-releaser.readthedocs.io/en/latest/how_to_guides/convert_repo_from_repo.html).
+The automated workflows publish distributions as GitHub release assets. They
+use the repository's built-in `GITHUB_TOKEN`; no GitHub App, npm token, or PyPI
+credentials are required. Enable GitHub Actions for the repository before use.
+An approval may still be required by the `release` environment's protection rules.
 
 Here is a summary of the steps to cut a new release:
 
 - Go to the Actions panel
-- Run the "Step 1: Prep Release" workflow
+- Run the "Step 1: Prep Release" workflow from the default branch, setting
+  `branch` to the branch containing the release code and `version_spec` to the
+  exact new version. This prepares the version/changelog and draft release.
 - Check the draft changelog
-- Run the "Step 2: Publish Release" workflow
+- Run the "Step 2: Publish Release" workflow from the default branch with the
+  same target `branch` and the draft's `release_url`. It builds and validates
+  the distributions, creates the version tag, uploads the distributions and
+  their `asset_shas.json` checksums, and publishes the GitHub release.
+
+The publish workflow always skips `publish-assets` (npm/PyPI publication) and
+`forwardport-changelog` (creating a changelog PR on another branch). The optional
+`steps_to_skip` input applies only to the populate/build phase. No package
+registry publication or changelog-forwardport PR is performed by this workflow.
 
 > [!NOTE]
 > Check out the [workflow documentation](https://jupyter-releaser.readthedocs.io/en/latest/get_started/making_release_from_repo.html)
