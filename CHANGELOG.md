@@ -2,6 +2,29 @@
 
 <!-- <START NEW CHANGELOG ENTRY> -->
 
+## 0.2.3
+
+([Full Changelog](https://github.com/rpwagner/jupyter-ai-persona-manager/compare/d5ed04bc6dfa05fd222d7ea1e54a528b404af4c3...3c7cf02a66839f1f592609106972b3d439f69308))
+
+### Bugs fixed
+
+- Fix fork repository metadata on 0.2.x [#5](https://github.com/rpwagner/jupyter-ai-persona-manager/pull/5) ([@rpwagner](https://github.com/rpwagner))
+
+### Other merged PRs
+
+- Restore selected persona controls after refresh [#3](https://github.com/rpwagner/jupyter-ai-persona-manager/pull/3) ([@rpwagner](https://github.com/rpwagner))
+
+### Contributors to this release
+
+The following people contributed discussions, new ideas, code and documentation contributions, and review.
+See [our definition of contributors](https://github-activity.readthedocs.io/en/latest/use/#how-does-this-tool-define-contributions-in-the-reports).
+
+([GitHub contributors page for this release](https://github.com/rpwagner/jupyter-ai-persona-manager/graphs/contributors?from=2026-09-28&to=2026-10-18&type=c))
+
+@rpwagner ([activity](https://github.com/search?q=repo%3Arpwagner%2Fjupyter-ai-persona-manager+involves%3Arpwagner+updated%3A2026-09-28..2026-10-18&type=Issues))
+
+<!-- <END NEW CHANGELOG ENTRY> -->
+
 ## 0.2.2
 
 ([Full Changelog](https://github.com/jupyter-ai-contrib/jupyter-ai-persona-manager/compare/v0.2.1...da1ade5d7c27258f6c69f8442110c29f4299ba11))
@@ -22,8 +45,6 @@ See [our definition of contributors](https://github-activity.readthedocs.io/en/l
 ([GitHub contributors page for this release](https://github.com/jupyter-ai-contrib/jupyter-ai-persona-manager/graphs/contributors?from=2026-09-23&to=2026-09-28&type=c))
 
 @dlqqq ([activity](https://github.com/search?q=repo%3Ajupyter-ai-contrib%2Fjupyter-ai-persona-manager+involves%3Adlqqq+updated%3A2026-09-23..2026-09-28&type=Issues))
-
-<!-- <END NEW CHANGELOG ENTRY> -->
 
 ## 0.2.2a1
 
