@@ -673,7 +673,7 @@ class TestPreparePersonaOnSelection:
 
     @pytest.mark.asyncio
     async def test_repeated_selection_prepares_once(self):
-        """Re-selecting an already-prepared persona is a harmless no-op."""
+        """Re-selecting replays state without preparing the persona again."""
         pm, p = _make_manager_and_persona()
 
         pm.prepare_persona(p.id)
@@ -682,6 +682,23 @@ class TestPreparePersonaOnSelection:
         await _await_dispatched(pm)
 
         assert p.prepare_calls == 1
+        assert p.state.publish.call_count == 2
+
+    @pytest.mark.asyncio
+    async def test_concurrent_selection_waits_for_preparation_before_publishing(self):
+        pm, p = _make_manager_and_persona()
+        p.prepare_gate = asyncio.Event()
+        pm.prepare_persona(p.id)
+        pm.prepare_persona(p.id)
+        await asyncio.sleep(0)
+        p.state.publish.assert_not_called()
+
+        p.prepare_gate.set()
+        await _await_dispatched(pm)
+
+        assert p.prepare_calls == 1
+        assert p.process_calls == 0
+        assert p.state.publish.call_count == 2
 
     @pytest.mark.asyncio
     async def test_prepare_failure_is_silent_on_selection(self):
@@ -696,6 +713,7 @@ class TestPreparePersonaOnSelection:
         # Selection is silent: the failure is NOT surfaced to the chat here. It
         # is only reported when the user actually sends a message (on_message).
         p.chat.add_message.assert_not_called()
+        p.state.publish.assert_not_called()
 
 
 class TestOnPersonaSelectedListener:

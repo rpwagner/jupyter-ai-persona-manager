@@ -1056,8 +1056,8 @@ export function UsageChip(props: { usage: Usage }): JSX.Element | null {
  * Hides itself when the chat has no personas.
  *
  * All session information (the persona list, each persona's model/settings
- * configuration, usage, and slash commands) is read from the chat's Yjs
- * awareness channel. The selection is owned by the frontend and stamped onto
+ * configuration, usage, and slash commands) is read from Jupyter Events.
+ * The selection is owned by the frontend and stamped onto
  * each message's metadata (there is no server-side "active persona" and no REST
  * polling). It's seeded from the default persona advertised over PageConfig.
  */
@@ -1223,11 +1223,17 @@ export function PersonaControls(
     model.updateMetadata(buildMessageMetadata(selectedId, settings));
   }, [model, metadataSignature]);
 
-  // On selection, tell the server to prepare the persona by
-  // emitting `persona_selected` over the event bus, so its controls appear
-  // before the first message. Skips "No one"; idempotent server-side.
+  // Prepare the selection once it is advertised, and again on a new list:
+  // refresh can replace a persona without changing its ID. Per-persona state
+  // updates retain the list reference, so they do not trigger a feedback loop.
+  // The server replays state without re-preparing an already-ready persona.
   useEffect(() => {
-    if (!events || !chatId || !selectedId) {
+    if (
+      !events ||
+      !chatId ||
+      !selectedId ||
+      !personas.some(p => p.id === selectedId)
+    ) {
       return;
     }
     void events
@@ -1237,7 +1243,7 @@ export function PersonaControls(
         data: { chat_id: chatId, persona_id: selectedId }
       })
       .catch(e => console.warn('Error emitting persona_selected event: ', e));
-  }, [events, chatId, selectedId]);
+  }, [events, chatId, selectedId, personas]);
 
   // No personas yet. While the manager's slot or its first list read is still
   // pending, show a loading placeholder (on slow networks this takes seconds);

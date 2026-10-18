@@ -478,7 +478,8 @@ class PersonaManager(LoggingConfigurable):
     def prepare_persona(self, persona_id: str) -> bool:
         """
         Eagerly run a persona's `prepare()` because a client selected it, so it
-        publishes its model & settings before the first message.
+        publishes its model & settings before the first message. Re-selecting
+        an already-prepared persona replays its current state for new clients.
 
         Runs in a background task. Unlike message handling, this is **silent**:
         a failed or unauthenticated preparation is not surfaced to the chat here
@@ -498,6 +499,7 @@ class PersonaManager(LoggingConfigurable):
             # `on_message` when the user sends a message.
             try:
                 await persona._ensure_prepared()
+                persona.state.publish()
             except Exception:
                 persona.log.debug(
                     "Eager prepare on selection did not complete for '%s'.",
