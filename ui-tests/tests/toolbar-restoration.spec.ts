@@ -37,13 +37,16 @@ test('refresh prepares the same selected persona and replaces its controls', asy
         '_MODEL_CURRENT = "prepared-one"',
         `_MODEL_CURRENT = "prepared-${model}"`
       ) + `\n# Fixture revision ${'x'.repeat(index + 1)}\n`;
-    expect(
-      await contents.uploadContent(
-        updated,
-        'text',
-        `${TEST_DIR}/.jupyter/personas/prepare-config_persona.py`
-      )
-    ).toBe(true);
+    // Galata's uploadContent only accepts 201 (new file), but replacing the
+    // installed fixture correctly returns 200 from the Contents API.
+    const fixtureUrl = `/api/contents/${TEST_DIR}/.jupyter/personas/prepare-config_persona.py`;
+    const saved = await request.put(fixtureUrl, {
+      data: { content: updated, format: 'text', type: 'file' }
+    });
+    expect(saved.status()).toBe(200);
+    const readback = await request.get(fixtureUrl);
+    expect(readback.status()).toBe(200);
+    expect((await readback.json()).content).toBe(updated);
     expect(
       await contents.uploadContent('go', 'text', `${TEST_DIR}/go-refresh`)
     ).toBe(true);
