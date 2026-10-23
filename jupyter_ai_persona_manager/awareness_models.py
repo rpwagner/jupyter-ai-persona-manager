@@ -1,20 +1,9 @@
 """
-Pydantic models for the persona-manager awareness channel.
+Pydantic component models for published persona session state.
 
-Session information (the persona list, and each persona's model, model
-settings, general settings, usage, and slash commands) is broadcast over the
-chat's Yjs awareness channel rather than fetched through REST polling. The
-awareness map is keyed by Yjs client IDs, with values being arbitrary dicts.
-The two slots this project owns are managed by the awareness helpers in
-`persona_awareness.py`:
-
-- `PersonaManagerAwareness` (fixed client ID) publishes the list of personas
-  (`PersonaOption`s) in the chat.
-- `PersonaAwareness` (one per persona) publishes that persona's model
-  configuration, general settings, usage, and slash commands.
-
-Those helpers own the aggregate shape via typed properties, so this module only
-defines the component models (the property types and the serialized shapes).
+Session information is carried by Jupyter Events, scoped by chat and persona
+IDs. `persona_events.py` owns the aggregate state and publication; this module
+defines its property types and serialized shapes.
 
 User selections are *not* stored here. They ride on outgoing message metadata
 (see `ModelSpec`), so each user's choices are private and applied per message.
@@ -83,6 +72,24 @@ class SettingConfiguration(BaseModel):
     """The selectable values for this setting, in display order."""
 
 
+class ModelDomain(BaseModel):
+    """Ordered model choices and the default after applying a setting value."""
+
+    default_model: str | None = None
+    """Model used when the dependent setting changes without a model override."""
+    options: list[ModelOption] = Field(default_factory=list)
+    """Selectable models for this setting value, in display order."""
+
+
+class ModelDependency(BaseModel):
+    """An optional dependency of model choices on one general setting."""
+
+    setting_id: str
+    """ID of the general setting that selects the model domain."""
+    values: dict[str, ModelDomain] = Field(default_factory=dict)
+    """Model domains keyed by exact setting option IDs."""
+
+
 class ModelConfiguration(BaseModel):
     """The persona's current model, its options, and its model settings."""
 
@@ -91,7 +98,9 @@ class ModelConfiguration(BaseModel):
     options: list[ModelOption] = Field(default_factory=list)
     """The models the persona offers, in display order."""
     settings: list[SettingConfiguration] = Field(default_factory=list)
-    """Settings that should render near the model picker (ACP ``model_config``)."""
+    """Settings that should render near the model picker."""
+    dependency: ModelDependency | None = None
+    """Optional model domains for pending values of one general setting."""
 
 
 class Usage(BaseModel):

@@ -33,6 +33,8 @@ fields, types, defaults, and constraints:
 ```{eval-rst}
 .. autopydantic_model:: jupyter_ai_persona_manager.PersonaDefaults
 .. autopydantic_model:: jupyter_ai_persona_manager.ModelConfiguration
+.. autopydantic_model:: jupyter_ai_persona_manager.ModelDependency
+.. autopydantic_model:: jupyter_ai_persona_manager.ModelDomain
 .. autopydantic_model:: jupyter_ai_persona_manager.ModelOption
 .. autopydantic_model:: jupyter_ai_persona_manager.SettingConfiguration
 .. autopydantic_model:: jupyter_ai_persona_manager.SettingOption

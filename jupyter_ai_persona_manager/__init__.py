@@ -28,6 +28,8 @@ from .persona_events import (
 from .awareness_models import (
     CommandOption,
     ModelConfiguration,
+    ModelDependency,
+    ModelDomain,
     ModelOption,
     ModelSpec,
     PersonaOption,

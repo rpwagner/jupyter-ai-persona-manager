@@ -35,13 +35,26 @@ export type SettingConfiguration = {
 };
 
 /**
- * The persona's current model, its options, and its model settings. Mirrors
- * `ModelConfiguration`.
+ * Ordered model choices and the default after applying a setting value.
+ * Mirrors `ModelDomain`.
  */
+export type ModelDomain = {
+  default_model: string | null;
+  options: ModelOption[];
+};
+
+/** Model domains keyed by the option IDs of one general setting. */
+export type ModelDependency = {
+  setting_id: string;
+  values: Record<string, ModelDomain>;
+};
+
+/** Active model state with an optional pending-domain projection. */
 export type ModelConfiguration = {
   current: string | null;
   options: ModelOption[];
   settings: SettingConfiguration[];
+  dependency?: ModelDependency | null;
 };
 
 /**
