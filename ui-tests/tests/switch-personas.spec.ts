@@ -43,10 +43,9 @@ test.describe('switch-personas', () => {
     await helpers.setControl('Thinking', 'High');
     await helpers.setControl('Effort', 'High');
 
-    // Its toolbar reflects those selections.
+    // The model remains inline; settings may move to the overflow menu as
+    // their labels resize. The send below verifies settings did not leak.
     await expect(helpers.control('Model')).toContainText('A Two');
-    await expect(helpers.control('Thinking')).toContainText('High');
-    await expect(helpers.control('Effort')).toContainText('High');
 
     // Switch to Switch B *without* sending as A first. Its controls must render
     // fresh at B's own defaults — not A's picks (and A's "A Two" model isn't even
@@ -54,8 +53,6 @@ test.describe('switch-personas', () => {
     await helpers.selectPersona(FixturePersona.SwitchB);
     await helpers.waitForControls();
     await expect(helpers.control('Model')).toContainText('B One');
-    await expect(helpers.control('Thinking')).toContainText('Medium');
-    await expect(helpers.control('Effort')).toContainText('Medium');
 
     // Send as B: the applied model/settings must all be defaults. A carried-over
     // selection would show up here as "a-two" / "high", proving the previous

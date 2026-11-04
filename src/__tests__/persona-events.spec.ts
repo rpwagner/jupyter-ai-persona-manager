@@ -37,6 +37,38 @@ function makeRegistry(): {
 }
 
 describe('PersonaSessionRegistry', () => {
+  it('changes list identity on membership publication, not state replay', async () => {
+    const { registry, events } = makeRegistry();
+    const manager = registry.get('a.chat');
+    const payload = {
+      chat_id: 'a.chat',
+      personas: [{ id: 'p1', name: 'One', avatar_url: null }]
+    };
+    await events.emit(PERSONAS_EVENT_SCHEMA_ID, payload);
+    const first = manager.personas;
+    expect(manager.personas).toBe(first);
+    await events.emit(PERSONA_STATE_EVENT_SCHEMA_ID, {
+      chat_id: 'a.chat',
+      persona_id: 'p1',
+      processing: false
+    });
+    expect(manager.personas).toBe(first);
+    // A same-ID refresh still requests preparation for replacement instances.
+    await events.emit(PERSONAS_EVENT_SCHEMA_ID, payload);
+    expect(manager.personas).not.toBe(first);
+    const refreshed = manager.personas;
+    registry.registerFrontendPersona('a.chat', {
+      id: 'fp1',
+      name: 'Frontend',
+      avatar_url: null
+    });
+    expect(manager.personas).not.toBe(refreshed);
+    const registered = manager.personas;
+    registry.unregisterFrontendPersona('a.chat', 'fp1');
+    expect(manager.personas).not.toBe(registered);
+    expect(manager.personas).toEqual(first);
+  });
+
   it('routes a personas event to the matching chat by id', async () => {
     const { registry, events } = makeRegistry();
     await events.emit(PERSONAS_EVENT_SCHEMA_ID, {
