@@ -108,12 +108,7 @@ export class PersonaManager implements IDisposable {
 
   /** The personas advertised in this chat (backend + frontend). */
   get personas(): PersonaOption[] {
-    const personas = [
-      ...this._backendPersonas,
-      ...this._frontendPersonas.values()
-    ];
-    personas.sort((a, b) => (a.name >= b.name ? 1 : -1));
-    return personas;
+    return this._personas;
   }
 
   /** A persona's session state, or undefined if it has not published yet. */
@@ -139,7 +134,7 @@ export class PersonaManager implements IDisposable {
   updateBackendPersonas(personas: PersonaOption[]): void {
     this._personasReceived = true;
     this._backendPersonas = personas;
-    this._changed.emit();
+    this._updatePersonas();
   }
 
   /**
@@ -151,7 +146,7 @@ export class PersonaManager implements IDisposable {
   registerFrontendPersona(persona: PersonaOption): void {
     this._personasReceived = true;
     this._frontendPersonas.set(persona.id, persona);
-    this._changed.emit();
+    this._updatePersonas();
   }
 
   /**
@@ -159,7 +154,7 @@ export class PersonaManager implements IDisposable {
    */
   unregisterFrontendPersona(personaId: string): void {
     this._frontendPersonas.delete(personaId);
-    this._changed.emit();
+    this._updatePersonas();
   }
 
   /**
@@ -189,6 +184,18 @@ export class PersonaManager implements IDisposable {
     Signal.clearData(this);
   }
 
+  // List identity changes only when membership is republished. The toolbar
+  // uses it to request state replay after a same-ID refresh; state updates
+  // must not retrigger selection and create an event feedback loop.
+  private _updatePersonas(): void {
+    this._personas = [
+      ...this._backendPersonas,
+      ...this._frontendPersonas.values()
+    ].sort((a, b) => (a.name >= b.name ? 1 : -1));
+    this._changed.emit();
+  }
+
+  private _personas: PersonaOption[] = [];
   private _personasReceived = false;
   private _backendPersonas: PersonaOption[] = [];
   private _frontendPersonas = new Map<string, PersonaOption>();

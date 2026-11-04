@@ -125,17 +125,19 @@ export async function installPersonas(
   personas: FixturePersona[]
 ): Promise<void> {
   const contents = galata.newContentsHelper(request);
+  const directory = `${dir}/.jupyter/personas`;
+  if (!(await contents.createDirectory(directory))) {
+    throw new Error(`Failed to create fixture directory ${directory}`);
+  }
   for (const persona of personas) {
     const file = `${persona}_persona.py`;
     const source = fs.readFileSync(path.join(PERSONAS_SRC, file), 'utf-8');
-    const uploaded = await contents.uploadContent(
-      source,
-      'text',
-      `${dir}/.jupyter/personas/${file}`
-    );
-    // uploadContent resolves false on failure rather than throwing; fail the
-    // suite here instead of timing out later on a picker with no personas.
-    if (!uploaded) {
+    // Workers rerun beforeAll after a failure. Contents PUT returns 200 for
+    // replacement and 201 for creation; Galata's uploadContent accepts only 201.
+    const saved = await request.put(`/api/contents/${directory}/${file}`, {
+      data: { content: source, format: 'text', type: 'file' }
+    });
+    if (![200, 201].includes(saved.status())) {
       throw new Error(`Failed to install fixture persona ${file} into ${dir}`);
     }
   }
@@ -242,10 +244,9 @@ export class TestHelpers {
 
   /**
    * Stamp metadata onto the active chat's input model, simulating another
-   * JupyterLab extension contributing keys to the outgoing message — e.g.
-   * jupyterlab-commands-toolkit stamps a `web_client_id` here. Uses the same
-   * public `input.updateMetadata` API the persona controls use, so it exercises
-   * the real shared-metadata path rather than a test-only shortcut.
+   * JupyterLab extension contributing keys to the outgoing message. Uses the
+   * same public `input.updateMetadata` API the persona controls use, so it
+   * exercises the real shared-metadata path rather than a test-only shortcut.
    */
   async stampInputMetadata(patch: Record<string, unknown>): Promise<void> {
     await this.page.evaluate(p => {

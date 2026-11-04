@@ -1,6 +1,7 @@
 {
     "name": "@jupyter-ai/persona-manager",
-    "version": "0.3.0-a0",
+    "version": "0.3.1-dev.0",
+    "packageManager": "yarn@3.5.0",
     "description": "The core manager & registry for AI personas in Jupyter AI",
     "keywords": [
         "jupyter",
@@ -61,7 +62,8 @@
         "@jupyter/chat": "^0.25.0-alpha.5",
         "@jupyterlab/application": "^4.0.0",
         "@jupyterlab/coreutils": "^6.0.0",
-        "@jupyterlab/services": "^7.0.0"
+        "@jupyterlab/services": "^7.0.0",
+        "@lumino/commands": "^2.0.0"
     },
     "devDependencies": {
         "@jupyter/builder": "^1.2.0",
