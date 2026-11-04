@@ -1,5 +1,12 @@
 # Making a new release of jupyter_ai_persona_manager
 
+## Fork maintenance versions
+
+Fork v0.2.3 and upstream v0.2.3 identify different sources and artifacts. Never
+replace either existing tag or asset. The cleanup backport uses source version
+`0.2.4-dev.0` (Python `0.2.4.dev0`); a later authorized release must select a new
+matching Python/frontend version after checking current tags, normally `0.2.4`.
+
 The extension can be published to `PyPI` and `npm` manually or using the [Jupyter Releaser](https://github.com/jupyter-server/jupyter_releaser).
 
 ## Manual release

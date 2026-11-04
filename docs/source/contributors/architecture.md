@@ -20,6 +20,11 @@ chat's room** (`text:chat:<file-id>`). That manager:
 `/refresh-personas` tears the instances down and rebuilds them (picking up code
 changes and new local personas) without restarting the server.
 
+Stopping a chat's manager removes its room and persona-selection event
+listeners before shutting down the personas, including when persona shutdown
+fails. Reopening the chat creates a fresh manager; stopped managers no longer
+receive selection or catch-up events.
+
 ## Selecting a persona: message metadata, not `@`-mentions
 
 As of Jupyter AI v3.1, personas are **not** selected by `@`-mentioning them in the
